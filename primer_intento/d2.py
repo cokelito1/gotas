@@ -1,7 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
+
+from matplotlib.animation import FuncAnimation
+from threading import Thread
+
+number_of_threads = 8
+number_of_droplets = 10000
 
 mu, sigma = 50, 10
 mu_v, sigma_v = 10, 3
@@ -54,12 +59,18 @@ class Gota:
         self.distancias[0] = self.velocidad[0] * dt
         for i in range(1, time_steps):
             drag_force  = 0.5 * C_d * rho_air * np.pi * self.radio[i]**2 * self.velocidad[i - 1]**2
+            if np.isnan(drag_force):
+                drag_force = 0
             aceleracion = -drag_force/self.masa[i]
-            self.velocidad[i] = self.velocidad[i - 1] + aceleracion * dt
+            self.velocidad[i] = np.max(self.velocidad[i - 1] + aceleracion * dt, 0)
+
+            if self.velocidad[i] < 0:
+                self.velocidad[i] = 0
+
             if np.isnan(self.velocidad[i]):
                 self.velocidad[i] = 0
 
-            self.distancias[i] = self.distancias[i - 1] + self.velocidad[i] * dt
+            self.distancias[i] = np.max(self.distancias[i - 1] + self.velocidad[i] * dt, 0)
 
         self.tiempo_de_desintegracion = np.where(self.radio == 0)[0][0]
         self.distancia_recorrida = self.distancias[-1]
@@ -94,6 +105,7 @@ ani = FuncAnimation(fig, update, frames=range(time_steps), blit=True, interval=1
 
 #plt.figure(figsize=(10, 6))
 
+
 gotas      = []
 tiempos    = []
 distancias = []
@@ -101,10 +113,23 @@ radios     = []
 angulos    = []
 xs = []
 ys = []
-for i in range(100):
-    gota = Gota()
 
-    gotas.append(gota)
+gotas_hilos = [[] for _ in range(number_of_threads)]
+
+def generar(gota_hilo):
+    for i in range(int(number_of_droplets/number_of_threads)):
+        gota_hilo.append(Gota())
+
+threads = [Thread(target=generar, args=[gotas_hilos[i]]) for i in range(number_of_threads)]
+
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+
+gotas = [g for i in range(number_of_threads) for g in gotas_hilos[i]]
+
+for gota in gotas:
     tiempos.append(gota.tiempo_de_desintegracion*(time_total/time_steps))
     distancias.append(gota.distancia_recorrida)
     angulos.append(gota.angle*180/np.pi)
