@@ -6,7 +6,7 @@ from matplotlib.animation import FuncAnimation
 import multiprocessing as mp
 
 number_of_threads = 16
-number_of_droplets = 5000
+number_of_droplets = 1000
 
 mu, sigma = 50, 10
 mu_v, sigma_v = 10, 3
@@ -76,7 +76,7 @@ class Gota:
         self.distancia_recorrida = self.distancias[-1]
 
 
-gota_animacion = Gota(50e-6, 10)
+#gota_animacion = Gota(50e-6, 10)
 
 '''
 # Set up the figure and axis
@@ -123,6 +123,8 @@ with mp.Manager() as manager:
     droplets_per_thread = number_of_droplets/number_of_threads
     processes = [mp.Process(target=generar, args=(gotas_hilos[i], droplets_per_thread)) for i in range(number_of_threads)]
 
+    print("Usando {} gotas por hilo".format(droplets_per_thread))
+
     for p in processes:
         p.start()
     for p in processes:
@@ -139,7 +141,6 @@ for gota in gotas:
     ys.append(gota.distancia_recorrida*np.sin(gota.angle))
 
     radios.append(gota.initial_radius)
-'''
     plt.figure("Radios")
     plt.plot(gota.time, gota.radio * 1e6)  # Convert radius to micrometers for plotting
     plt.figure("Velocidades")
@@ -186,4 +187,3 @@ ani = FuncAnimation(fig, update, frames=time_steps, blit=True, interval=1000 / f
 #ani.save('scatter.mp4', writer=FFwriter)
 
 plt.show()
-'''
