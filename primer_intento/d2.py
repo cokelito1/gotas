@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 from matplotlib.animation import FuncAnimation
-from threading import Thread
+import multiprocessing as mp
 
-number_of_threads = 8
-number_of_droplets = 10000
+number_of_threads = 16
+number_of_droplets = 5000
 
 mu, sigma = 50, 10
 mu_v, sigma_v = 10, 3
@@ -114,20 +114,21 @@ angulos    = []
 xs = []
 ys = []
 
-gotas_hilos = [[] for _ in range(number_of_threads)]
-
-def generar(gota_hilo):
+def generar(gota_hilo, n):
     for i in range(int(number_of_droplets/number_of_threads)):
         gota_hilo.append(Gota())
 
-threads = [Thread(target=generar, args=[gotas_hilos[i]]) for i in range(number_of_threads)]
+with mp.Manager() as manager:
+    gotas_hilos = [manager.list() for _ in range(number_of_threads)]
+    droplets_per_thread = number_of_droplets/number_of_threads
+    processes = [mp.Process(target=generar, args=(gotas_hilos[i], droplets_per_thread)) for i in range(number_of_threads)]
 
-for t in threads:
-    t.start()
-for t in threads:
-    t.join()
+    for p in processes:
+        p.start()
+    for p in processes:
+        p.join()
 
-gotas = [g for i in range(number_of_threads) for g in gotas_hilos[i]]
+    gotas = [g for gota_hilo in gotas_hilos for g in gota_hilo]
 
 for gota in gotas:
     tiempos.append(gota.tiempo_de_desintegracion*(time_total/time_steps))
@@ -138,7 +139,7 @@ for gota in gotas:
     ys.append(gota.distancia_recorrida*np.sin(gota.angle))
 
     radios.append(gota.initial_radius)
-
+'''
     plt.figure("Radios")
     plt.plot(gota.time, gota.radio * 1e6)  # Convert radius to micrometers for plotting
     plt.figure("Velocidades")
@@ -185,3 +186,4 @@ ani = FuncAnimation(fig, update, frames=time_steps, blit=True, interval=1000 / f
 #ani.save('scatter.mp4', writer=FFwriter)
 
 plt.show()
+'''
