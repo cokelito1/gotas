@@ -5,7 +5,7 @@ import matplotlib.animation as animation
 from matplotlib.animation import FuncAnimation
 import multiprocessing as mp
 
-number_of_threads = 16
+number_of_threads = 12
 number_of_droplets = 1000
 
 mu, sigma = 50, 10
@@ -19,7 +19,7 @@ initial_velocity = np.random.normal(10, 3)
 time_total = 12                     # Total time in seconds for the animation
 fps = 120                           # Frames per second for the animation
 time_steps = int(time_total * fps) # Total number of frames
-evaporation_constant = 1e-9        # Evaporation constant in m^2/s
+evaporation_constant = 1.62*(10**(-9))        # Evaporation constant in m^2/s
 # Constantes fisica
 rho_water    = 1000   # Densidad del agua kg/m^3
 rho_air      = 1.225  # Densidad del aire kg/m^3
@@ -106,84 +106,107 @@ ani = FuncAnimation(fig, update, frames=range(time_steps), blit=True, interval=1
 #plt.figure(figsize=(10, 6))
 
 
-gotas      = []
-tiempos    = []
-distancias = []
-radios     = []
-angulos    = []
-xs = []
-ys = []
+def main():
+    gotas      = []
+    tiempos    = []
+    distancias = []
+    radios     = []
+    angulos    = []
+    xs = []
+    ys = []
 
-def generar(gota_hilo, n):
-    for i in range(int(number_of_droplets/number_of_threads)):
-        gota_hilo.append(Gota())
+    def generar(gota_hilo, n):
+        for i in range(int(number_of_droplets/number_of_threads)):
+            gota_hilo.append(Gota())
 
-with mp.Manager() as manager:
-    gotas_hilos = [manager.list() for _ in range(number_of_threads)]
-    droplets_per_thread = number_of_droplets/number_of_threads
-    processes = [mp.Process(target=generar, args=(gotas_hilos[i], droplets_per_thread)) for i in range(number_of_threads)]
+    with mp.Manager() as manager:
+        gotas_hilos = [manager.list() for _ in range(number_of_threads)]
+        droplets_per_thread = number_of_droplets/number_of_threads
+        processes = [mp.Process(target=generar, args=(gotas_hilos[i], droplets_per_thread)) for i in range(number_of_threads)]
 
-    print("Usando {} gotas por hilo".format(droplets_per_thread))
+        print("Usando {} gotas por hilo".format(droplets_per_thread))
 
-    for p in processes:
-        p.start()
-    for p in processes:
-        p.join()
+        for p in processes:
+            p.start()
+        for p in processes:
+            p.join()
 
-    gotas = [g for gota_hilo in gotas_hilos for g in gota_hilo]
+        gotas = [g for gota_hilo in gotas_hilos for g in gota_hilo]
 
-for gota in gotas:
-    tiempos.append(gota.tiempo_de_desintegracion*(time_total/time_steps))
-    distancias.append(gota.distancia_recorrida)
-    angulos.append(gota.angle*180/np.pi)
+    for gota in gotas:
+        tiempos.append(gota.tiempo_de_desintegracion*(time_total/time_steps))
+        distancias.append(gota.distancia_recorrida)
+        angulos.append(gota.angle*180/np.pi)
 
-    xs.append(gota.distancia_recorrida*np.cos(gota.angle))
-    ys.append(gota.distancia_recorrida*np.sin(gota.angle))
+        xs.append(gota.distancia_recorrida*np.cos(gota.angle))
+        ys.append(gota.distancia_recorrida*np.sin(gota.angle))
 
-    radios.append(gota.initial_radius)
-    plt.figure("Radios")
-    plt.plot(gota.time, gota.radio * 1e6)  # Convert radius to micrometers for plotting
-    plt.figure("Velocidades")
-    plt.plot(gota.time, gota.velocidad)
+        radios.append(gota.initial_radius)
+        plt.figure("Radios")
+        plt.plot(gota.time, gota.radio * 1e6)  # Convert radius to micrometers for plotting
+        plt.title("Evolucion del radio contra el tiempo")
+        plt.ylabel("Radio (µm)")
+        plt.xlabel("Tiempo (s)")
+        plt.figure("Velocidades")
+        plt.title("Evolucion de la velocidad contra el tiempo")
+        plt.xlabel("Tiempo (s)")
+        plt.ylabel("Velocidad (m/s)")
+        plt.plot(gota.time, gota.velocidad)
 
 
-plt.figure("Distribucion de tiempos de desintegracion")
-plt.hist(tiempos, edgecolor='black')
+    plt.figure("Distribución de tiempos de desintegracion")
+    plt.hist(tiempos, edgecolor='black')
+    plt.title("Distribución de tiempos de desintegración")
+    plt.ylabel("Cantidad de gotas")
+    plt.xlabel("Tiempo de desintegración (s)")
 
-plt.figure("Distribucion de distancias recorridas")
-print(distancias)
-plt.hist(distancias, edgecolor='black')
+    plt.figure("Distribucion de distancias recorridas")
+    plt.hist(distancias, edgecolor='black')
+    plt.title("Distribución de distancia recorrida")
+    plt.ylabel("Cantidad de gotas")
+    plt.xlabel("Distancia (m)")
 
-plt.figure("Simulacion estornudo")
-plt.scatter(xs, ys)
+    plt.figure("Simulacion estornudo")
+    plt.title("Simulacion gotas de agua")
+    plt.xlabel("X (m)")
+    plt.ylabel("Y (m)")
+    plt.scatter(xs, ys)
 
-plt.figure("Distribucion de radios iniciales")
-plt.hist(radios, edgecolor='black')
+    plt.figure("Distribucion de radios iniciales")
+    plt.title("Distribucion de radios iniciales")
+    plt.xlabel("Radios Iniciales (m)")
+    plt.ylabel("Cantidad de gotas")
+    plt.hist(radios, edgecolor='black')
 
-plt.figure("Distribucion de angulos")
-plt.hist(angulos, edgecolor='black')
+    plt.figure("Distribucion de angulos")
+    plt.title("Distribucion de angulos")
+    plt.xlabel("Angulos (deg)")
+    plt.ylabel("Cantidad de gotas")
+    plt.hist(angulos, edgecolor='black')
 
-positions_x = np.array([gota.distancias * np.cos(gota.angle) for gota in gotas])
-positions_y = np.array([gota.distancias * np.sin(gota.angle) for gota in gotas])
-radii = np.array([gota.radio * 1e6 for gota in gotas])  # Convert to micrometers for animation
+    positions_x = np.array([gota.distancias * np.cos(gota.angle) for gota in gotas])
+    positions_y = np.array([gota.distancias * np.sin(gota.angle) for gota in gotas])
+    radii = np.array([gota.radio * 1e6 for gota in gotas])  # Convert to micrometers for animation
 
-fig, ax = plt.subplots()
-ax.set_aspect('equal')
-ax.set_xlim(0, 2)
-ax.set_ylim(-1.5, 1.5)
-ax.set_xlabel("X (Metros)")
-ax.set_ylabel("Y (Metros)")
-plt.title("Evaporating Droplets Scatter Animation")
+    fig, ax = plt.subplots()
+    ax.set_aspect('equal')
+    ax.set_xlim(0, 2)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    plt.title("Animacion")
 
-scat = ax.scatter(positions_x[:, 0], positions_y[:, 0], s=radii[:, 0], color='blue', alpha=0.5)
+    scat = ax.scatter(positions_x[:, 0], positions_y[:, 0], s=radii[:, 0], color='blue', alpha=0.5)
 
-def update(frame):
-    current_radii = radii[:, frame]
-    scat.set_offsets(np.c_[positions_x[:, frame], positions_y[:, frame]])
-    return scat,
+    def update(frame):
+        current_radii = radii[:, frame]
+        scat.set_offsets(np.c_[positions_x[:, frame], positions_y[:, frame]])
+        return scat,
 
-ani = FuncAnimation(fig, update, frames=time_steps, blit=True, interval=1000 / fps)
-#FFwriter = animation.FFMpegWriter(fps=120)
-#ani.save('scatter.mp4', writer=FFwriter)
+    ani = FuncAnimation(fig, update, frames=time_steps, blit=True, interval=1000 / fps)
+    #FFwriter = animation.FFMpegWriter(fps=120)
+    #ani.save('scatter.mp4', writer=FFwriter)
+    plt.show()
 
-plt.show()
+if __name__ == "__main__":
+    main()
